@@ -57,6 +57,45 @@ function saveAccounts() {
   fs.writeFileSync("accounts.json", JSON.stringify(accounts, null, 2));
 }
 
+async function updateAccountsMessage(ctx) {
+  const userId = ctx.from.id;
+  const userAccounts = accounts[userId];
+
+  if (!userAccounts) {
+    return; // No accounts saved
+  }
+
+  const accountsMenu = new InlineKeyboard();
+
+  for (const accountKey in userAccounts) {
+    const account = userAccounts[accountKey];
+    const isSelected =
+      ctx.session.selectedAccount &&
+      ctx.session.selectedAccount.accountKey === accountKey;
+
+    const accountText = isSelected
+      ? `✅ Account ${account.name}`
+      : `Account ${account.name}`;
+
+    accountsMenu.text(accountText, `getaccount_${accountKey}`);
+  }
+
+  accountsMenu.row().text("Add New Account", "addnewaccount");
+  const messageId = ctx.callbackQuery.message.message_id;
+  if (
+    ctx.session.selectedAccount &&
+    ctx.session.selectedAccount.messageId === messageId
+  ) {
+    return;
+  }
+  const uniqueMessageText = `Selected Account: ${ctx.session.selectedAccount.address}\nYour saved accounts:\n`;
+
+  // Edit the message with the updated accounts keyboard
+  await ctx.editMessageText(uniqueMessageText, {
+    reply_markup: accountsMenu,
+  });
+}
+
 bot.command("ping", async (ctx) => {
   const chatId = ctx.chat.id;
   const healthcheck = {
@@ -89,7 +128,7 @@ bot.command("setaccount", async (ctx) => {
 
     await ctx.reply("Please enter the account name:");
   } catch (error) {
-    await ctx.reply(`Error setting private key: ${error.message}`);
+    await ctx.reply(`Error setting account name: ${error.message}`);
   }
 });
 
@@ -108,9 +147,9 @@ bot.command("accounts", async (ctx) => {
 
       for (const accountKey in userAccounts) {
         const account = userAccounts[accountKey];
-        const isSelected = ctx.session.selectedAccount
-          ? ctx.session.selectedAccount.accountKey === accountKey
-          : false;
+        const isSelected =
+          ctx.session.selectedAccount &&
+          ctx.session.selectedAccount.accountKey === accountKey;
 
         const accountText = isSelected
           ? `✅ Account ${account.name}`
@@ -121,13 +160,88 @@ bot.command("accounts", async (ctx) => {
 
       accountsMenu.row().text("Add New Account", "addnewaccount");
 
-      await ctx.reply("Your saved accounts:", {
-        reply_markup: accountsMenu,
-      });
+      const selectedAccountText = ctx.session.selectedAccount
+        ? `Selected Account: ${ctx.session.selectedAccount.address}`
+        : "";
+
+      await ctx.reply(
+        selectedAccountText
+          ? `${selectedAccountText}\nYour saved accounts:\n`
+          : "Your saved accounts:",
+        {
+          reply_markup: accountsMenu,
+        }
+      );
     }
   } catch (error) {
     await ctx.reply(`Error checking accounts: ${error.message}`);
   }
+});
+
+bot.command("dydxprivatemenus", async (ctx) => {
+  const userId = ctx.from.id;
+
+  try {
+    const userAccounts = accounts[userId];
+    const selectedAccount = ctx.session.selectedAccount;
+    if (!userAccounts) {
+      await ctx.reply(
+        "No accounts saved. Use /setaccount to set your private key."
+      );
+      return;
+    }
+    if (!selectedAccount) {
+      await ctx.reply(
+        "No selected account. Use /accounts to select your account"
+      );
+      return;
+    }
+
+    const dydxMenus = new InlineKeyboard();
+    dydxMenus.text("Get Positions", `getposition`);
+    dydxMenus.text("Get Transfers", "gettransfer");
+    dydxMenus.row().text("Get Orders", "getorders");
+    dydxMenus.text("Get Active Order", "getactiveorders");
+    dydxMenus.row().text("Get Funding Payment", "getfundingpayment");
+    dydxMenus.text("Get Accounts", "getaccounts");
+
+    await ctx.reply("dYdX Private Menus:", {
+      reply_markup: dydxMenus,
+    });
+  } catch (error) {
+    await ctx.reply(`Error checking accounts: ${error.message}`);
+  }
+});
+
+bot.command("dydxpublicmenus", async (ctx) => {
+  const userId = ctx.from.id;
+
+  try {
+    const dydxMenus = new InlineKeyboard();
+    dydxMenus.text("Get Historical Funding", "gethistoricalfunding");
+    dydxMenus.text("Get Markets", "getmarkets");
+
+    await ctx.reply("dYdX Public Menus:", {
+      reply_markup: dydxMenus,
+    });
+  } catch (error) {
+    await ctx.reply(`Error checking accounts: ${error.message}`);
+  }
+});
+
+bot.command("help", async (ctx) => {
+  // Show help message
+  const helpMessage = `
+    <b>Available Commands:</b>
+    /ping - Check the bot's health and uptime.
+    /setaccount - Set up a new account.
+    /accounts - View and manage your saved accounts.
+    /dydxprivatemenus - View private information from dYdX.
+    /dydxpublicmenus - View public information from dYdX.
+    /help - Display this help message.
+  `;
+
+  await ctx.reply(helpMessage, { parse_mode: "HTML" });
 });
 
 bot.on("callback_query", async (ctx) => {
@@ -147,6 +261,8 @@ bot.on("callback_query", async (ctx) => {
           accountKey,
           name: account.name,
           privateKey: account.privateKey,
+          address: account.address,
+          user: account.user,
         };
 
         // Update the previous message
@@ -182,45 +298,6 @@ bot.on("callback_query", async (ctx) => {
   }
 });
 
-async function updateAccountsMessage(ctx) {
-  const userId = ctx.from.id;
-  const userAccounts = accounts[userId];
-
-  if (!userAccounts) {
-    return; // No accounts saved
-  }
-
-  const accountsMenu = new InlineKeyboard();
-
-  for (const accountKey in userAccounts) {
-    const account = userAccounts[accountKey];
-    const isSelected =
-      ctx.session.selectedAccount &&
-      ctx.session.selectedAccount.accountKey === accountKey;
-
-    const accountText = isSelected
-      ? `✅ Account ${account.name}`
-      : `Account ${account.name}`;
-
-    accountsMenu.text(accountText, `getaccount_${accountKey}`);
-  }
-
-  accountsMenu.row().text("Add New Account", "addnewaccount");
-  const messageId = ctx.callbackQuery.message.message_id;
-  if (
-    ctx.session.selectedAccount &&
-    ctx.session.selectedAccount.messageId === messageId
-  ) {
-    return;
-  }
-  const uniqueMessageText = `Your saved accounts:\nSelected Account: ${ctx.session.selectedAccount.privateKey}`;
-
-  // Edit the message with the updated accounts keyboard
-  await ctx.editMessageText(uniqueMessageText, {
-    reply_markup: accountsMenu,
-  });
-}
-
 bot.on("message", async (ctx) => {
   const chatId = ctx.chat.id;
   const userId = ctx.from.id;
@@ -244,11 +321,22 @@ bot.on("message", async (ctx) => {
             "Invalid private key format. It should start with '0x'."
           );
         }
-
+        const web3 = new Web3();
+        web3.eth.accounts.wallet.add(messageText);
+        const address = web3.eth.accounts.wallet[0].address;
+        // Confirm that the provided information is correct
+        if (!address) {
+          throw new Error("Invalid private key format");
+        }
         // Save the private key for the user and account
         const newAccountNumber = Object.keys(accounts[userId] || {}).length + 1;
         const accountKey = `account_${newAccountNumber}`;
-
+        const client = new DydxClient(HTTP_HOST, { web3 });
+        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
+          address
+        );
+        client.apiKeyCredentials = apiCreds;
+        const { user } = await client.private.getUser();
         if (!accounts[userId]) {
           accounts[userId] = {};
         }
@@ -256,6 +344,8 @@ bot.on("message", async (ctx) => {
         accounts[userId][accountKey] = {
           name: settingUpAccount.accountName,
           privateKey: messageText,
+          address,
+          user,
         };
         saveAccounts();
 
@@ -271,7 +361,7 @@ bot.on("message", async (ctx) => {
       }
     }
   } catch (error) {
-    await ctx.reply(`Error setting private key: ${error.message}`);
+    await ctx.reply(`Error settingUpAccount: ${error.message}`);
   }
 });
 
