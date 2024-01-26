@@ -1,6 +1,6 @@
 const { DydxMarket } = require("@dydxprotocol/starkex-lib");
-const { DydxClient } = require("@dydxprotocol/v3-client");
-const { Bot, Context, session, InlineKeyboard } = require("grammy");
+const { DydxClient, Market } = require("@dydxprotocol/v3-client");
+const { Bot, Context, session, InlineKeyboard, InputFile } = require("grammy");
 const Web3 = require("web3");
 const fs = require("fs");
 const express = require("express");
@@ -8,6 +8,7 @@ const bodyParser = require("body-parser");
 const log4js = require("./config/log4js");
 const logger = log4js.getLogger("app");
 const moment = require("moment-timezone");
+const XLSX = require("xlsx");
 
 require("dotenv").config();
 
@@ -281,18 +282,41 @@ bot.on("callback_query", async (ctx) => {
       };
 
       await ctx.reply("Please enter the account name:");
-    } else {
-      // Handle other callback queries if needed
+    } else if (queryData === "gethistoricalfunding") {
+      const client = new DydxClient(HTTP_HOST);
+
+      // Assuming `historicalFunding` is an array of objects
+      const { historicalFunding } = await client.public.getHistoricalFunding({
+        market: Market.BTC_USD,
+      });
+
+      if (historicalFunding && historicalFunding.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(historicalFunding);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
+
+        XLSX.writeFile(wb, xlsxFileName);
+
+        ctx.replyWithDocument(new InputFile(xlsxFileName), {
+          caption: `Historical Funding Data - ${timestamp}`,
+        });
+      } else {
+        ctx.reply("No historical funding data available.");
+      }
     }
 
-    // Answer the callback query to close the inline keyboard
     await ctx.answerCallbackQuery();
   } catch (error) {
     if (
-      (error.description =
-        "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message")
+      error.description ===
+      "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message"
     ) {
       await ctx.reply(`You selected the same account.`);
+    } else {
+      await ctx.reply(`Error handling callback query: ${error.message}`);
     }
     logger.error(`Error handling callback query: ${error.message}`);
   }
