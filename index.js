@@ -9,7 +9,7 @@ const log4js = require("./config/log4js");
 const logger = log4js.getLogger("app");
 const moment = require("moment-timezone");
 const XLSX = require("xlsx");
-
+const path = require("path");
 require("dotenv").config();
 
 const HTTP_HOST = "https://api.dydx.exchange";
@@ -382,21 +382,117 @@ bot.on("callback_query", async (ctx) => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const xlsxFileName = `marketsdata_${timestamp}.xlsx`;
 
-        XLSX.writeFile(wb, xlsxFileName);
+        // Define the directory path
+        const userDirectory = path.join(__dirname, "data", userId.toString());
 
-        ctx.replyWithDocument(new InputFile(xlsxFileName), {
-          caption: `Markets Data - ${timestamp}`,
+        // Ensure the directory exists, creating it if necessary
+        if (!fs.existsSync(userDirectory)) {
+          fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        }
+
+        // Construct the file path
+        const filePath = path.join(userDirectory, xlsxFileName);
+
+        // Write the file to the specified directory
+        XLSX.writeFile(wb, filePath);
+
+        // Create a promise to wait for the file to be written
+        const waitForFile = new Promise((resolve, reject) => {
+          const checkFile = () => {
+            if (fs.existsSync(filePath)) {
+              resolve();
+            } else {
+              setTimeout(checkFile, 100); // Check again after a short delay
+            }
+          };
+          checkFile();
+        });
+
+        // Wait for the file to be written before replying with the document
+        waitForFile.then(() => {
+          ctx.replyWithDocument(new InputFile(filePath), {
+            caption: `Markets Data - ${timestamp}`,
+          });
         });
       } else {
         ctx.reply("No markets data available.");
       }
+    } else if (queryData === "getposition") {
+      if (ctx.session.selectedAccount) {
+        const web3 = new Web3();
+        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
+        const address = web3.eth.accounts.wallet[0].address;
+        // Confirm that the provided information is correct
+        if (!address) {
+          throw new Error("Invalid private key format");
+        }
+        const client = new DydxClient(HTTP_HOST, { web3 });
+        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
+          address
+        );
+        client.apiKeyCredentials = apiCreds;
+        const { positions } = await client.private.getPositions();
+
+        if (positions.length > 0) {
+          const ws = XLSX.utils.json_to_sheet(positions);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const xlsxFileName = `positions_${timestamp}.xlsx`;
+
+          // Define the directory path
+          const userDirectory = path.join(__dirname, "data", userId.toString());
+
+          // Ensure the directory exists, creating it if necessary
+          if (!fs.existsSync(userDirectory)) {
+            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+          }
+
+          // Construct the file path
+          const filePath = path.join(userDirectory, xlsxFileName);
+
+          // Write the file to the specified directory
+          XLSX.writeFile(wb, filePath);
+
+          // Create a promise to wait for the file to be written
+          const waitForFile = new Promise((resolve, reject) => {
+            const checkFile = () => {
+              if (fs.existsSync(filePath)) {
+                resolve();
+              } else {
+                setTimeout(checkFile, 100); // Check again after a short delay
+              }
+            };
+            checkFile();
+          });
+
+          // Wait for the file to be written before replying with the document
+          waitForFile.then(() => {
+            ctx.replyWithDocument(new InputFile(filePath), {
+              caption: `Position Data - ${timestamp}`,
+            });
+          });
+        } else {
+          await ctx.reply(`No positions data available.`);
+        }
+      } else {
+        throw new Error("No selected account");
+      }
     }
+
+    await ctx.answerCallbackQuery();
   } catch (error) {
+    await ctx.answerCallbackQuery();
     if (
       error.description ===
       "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message"
     ) {
       await ctx.reply(`You selected the same account.`);
+    } else if (error.message === "No selected account") {
+      await ctx.reply(
+        `No selected account. Use /accounts to select your account`
+      );
     } else {
       await ctx.reply(`Error handling callback query: ${error.message}`);
     }
@@ -405,10 +501,8 @@ bot.on("callback_query", async (ctx) => {
 });
 
 bot.on("message", async (ctx) => {
-  const chatId = ctx.chat.id;
-  const userId = ctx.from.id;
   const messageText = ctx.message.text;
-
+  const userId = ctx.from.id;
   try {
     const settingUpAccount = ctx.session.settingUpAccount;
 
@@ -488,10 +582,37 @@ bot.on("message", async (ctx) => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
 
-        XLSX.writeFile(wb, xlsxFileName);
+        // Define the directory path
+        const userDirectory = path.join(__dirname, "data", userId.toString());
 
-        await ctx.replyWithDocument(new InputFile(xlsxFileName), {
-          caption: `Historical Funding Data - ${timestamp}`,
+        // Ensure the directory exists, creating it if necessary
+        if (!fs.existsSync(userDirectory)) {
+          fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        }
+
+        // Construct the file path
+        const filePath = path.join(userDirectory, xlsxFileName);
+
+        // Write the file to the specified directory
+        XLSX.writeFile(wb, filePath);
+
+        // Create a promise to wait for the file to be written
+        const waitForFile = new Promise((resolve, reject) => {
+          const checkFile = () => {
+            if (fs.existsSync(filePath)) {
+              resolve();
+            } else {
+              setTimeout(checkFile, 100); // Check again after a short delay
+            }
+          };
+          checkFile();
+        });
+
+        // Wait for the file to be written before replying with the document
+        waitForFile.then(() => {
+          ctx.replyWithDocument(new InputFile(filePath), {
+            caption: `Historical Funding Data - ${timestamp}`,
+          });
         });
       } else {
         await ctx.reply(
