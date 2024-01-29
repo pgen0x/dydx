@@ -74,9 +74,13 @@ async function updateAccountsMessage(ctx) {
       ctx.session.selectedAccount &&
       ctx.session.selectedAccount.accountKey === accountKey;
 
+    const truncatedAddress = `${account.address.slice(
+      0,
+      4
+    )}...${account.address.slice(-4)}`;
     const accountText = isSelected
-      ? `✅ Account ${account.name}`
-      : `Account ${account.name}`;
+      ? `✅ Account ${account.name} (${truncatedAddress})`
+      : `Account ${account.name} (${truncatedAddress})`;
 
     accountsMenu.text(accountText, `getaccount_${accountKey}`);
   }
@@ -89,11 +93,38 @@ async function updateAccountsMessage(ctx) {
   ) {
     return;
   }
-  const uniqueMessageText = `Selected Account: ${ctx.session.selectedAccount.address}\nYour saved accounts:\n`;
+
+  let userDetails = "";
+  if (ctx.session.selectedAccount.user.email) {
+    userDetails += `email: ${ctx.session.selectedAccount.user.email}\n`;
+  }
+  if (ctx.session.selectedAccount.user.username) {
+    userDetails += `username: ${ctx.session.selectedAccount.user.username}\n`;
+  }
+  if (ctx.session.selectedAccount.user.makerFeeRate) {
+    userDetails += `makerFeeRate: ${ctx.session.selectedAccount.user.makerFeeRate}\n`;
+  }
+  if (ctx.session.selectedAccount.user.takerFeeRate) {
+    userDetails += `takerFeeRate: ${ctx.session.selectedAccount.user.takerFeeRate}\n`;
+  }
+  if (ctx.session.selectedAccount.user.fees30D) {
+    userDetails += `fees30D: ${ctx.session.selectedAccount.user.fees30D}\n`;
+  }
+  if (ctx.session.selectedAccount.user.dydxTokenBalance) {
+    userDetails += `dydxTokenBalance: ${ctx.session.selectedAccount.user.dydxTokenBalance}\n`;
+  }
+  if (ctx.session.selectedAccount.user.stakedDydxTokenBalance) {
+    userDetails += `stakedDydxTokenBalance: ${ctx.session.selectedAccount.user.stakedDydxTokenBalance}\n`;
+  }
+  if (ctx.session.selectedAccount.user.activeStakedDydxTokenBalance) {
+    userDetails += `activeStakedDydxTokenBalance: ${ctx.session.selectedAccount.user.activeStakedDydxTokenBalance}\n`;
+  }
+  const uniqueMessageText = `Selected Account: <b>${ctx.session.selectedAccount.address}</b>\nPublic ID: ${ctx.session.selectedAccount.user.publicId}\n${userDetails}\nYour saved accounts:\n`;
 
   // Edit the message with the updated accounts keyboard
   await ctx.editMessageText(uniqueMessageText, {
     reply_markup: accountsMenu,
+    parse_mode: "HTML",
   });
 }
 
@@ -152,25 +183,58 @@ bot.command("accounts", async (ctx) => {
           ctx.session.selectedAccount &&
           ctx.session.selectedAccount.accountKey === accountKey;
 
+        const truncatedAddress = `${account.address.slice(
+          0,
+          4
+        )}...${account.address.slice(-4)}`;
+
         const accountText = isSelected
-          ? `✅ Account ${account.name}`
-          : `Account ${account.name}`;
+          ? `✅ Account ${account.name} (${truncatedAddress})`
+          : `Account ${account.name} (${truncatedAddress})`;
 
         accountsMenu.text(accountText, `getaccount_${accountKey}`);
       }
 
       accountsMenu.row().text("Add New Account", "addnewaccount");
 
-      const selectedAccountText = ctx.session.selectedAccount
-        ? `Selected Account: ${ctx.session.selectedAccount.address}`
-        : "";
+      let uniqueMessageText = "";
+      if (ctx.session.selectedAccount) {
+        let userDetails = "";
+        const selectedAccount = ctx.session.selectedAccount;
+        if (selectedAccount.user) {
+          if (selectedAccount.user.email) {
+            userDetails += `email: ${selectedAccount.user.email}\n`;
+          }
+          if (selectedAccount.user.username) {
+            userDetails += `username: ${selectedAccount.user.username}\n`;
+          }
+          if (selectedAccount.user.makerFeeRate) {
+            userDetails += `makerFeeRate: ${selectedAccount.user.makerFeeRate}\n`;
+          }
+          if (selectedAccount.user.takerFeeRate) {
+            userDetails += `takerFeeRate: ${selectedAccount.user.takerFeeRate}\n`;
+          }
+          if (selectedAccount.user.fees30D) {
+            userDetails += `fees30D: ${selectedAccount.user.fees30D}\n`;
+          }
+          if (selectedAccount.user.dydxTokenBalance) {
+            userDetails += `dydxTokenBalance: ${selectedAccount.user.dydxTokenBalance}\n`;
+          }
+          if (selectedAccount.user.stakedDydxTokenBalance) {
+            userDetails += `stakedDydxTokenBalance: ${selectedAccount.user.stakedDydxTokenBalance}\n`;
+          }
+          if (selectedAccount.user.activeStakedDydxTokenBalance) {
+            userDetails += `activeStakedDydxTokenBalance: ${selectedAccount.user.activeStakedDydxTokenBalance}\n`;
+          }
+        }
+        uniqueMessageText = `Selected Account: <b>${selectedAccount.address}</b>\nPublic ID: ${selectedAccount.user.publicId}\n${userDetails}\nYour saved accounts:\n`;
+      }
 
       await ctx.reply(
-        selectedAccountText
-          ? `${selectedAccountText}\nYour saved accounts:\n`
-          : "Your saved accounts:",
+        uniqueMessageText ? uniqueMessageText : "Your saved accounts:",
         {
           reply_markup: accountsMenu,
+          parse_mode: "HTML",
         }
       );
     }
@@ -245,6 +309,21 @@ bot.command("help", async (ctx) => {
   await ctx.reply(helpMessage, { parse_mode: "HTML" });
 });
 
+bot.command("start", async (ctx) => {
+  // Show help message
+  const helpMessage = `
+    <b>Available Commands:</b>
+    /ping - Check the bot's health and uptime.
+    /setaccount - Set up a new account.
+    /accounts - View and manage your saved accounts.
+    /dydxprivatemenus - View private information from dYdX.
+    /dydxpublicmenus - View public information from dYdX.
+    /help - Display this help message.
+  `;
+
+  await ctx.reply(helpMessage, { parse_mode: "HTML" });
+});
+
 bot.on("callback_query", async (ctx) => {
   const userId = ctx.from.id;
   const queryData = ctx.callbackQuery.data;
@@ -283,32 +362,35 @@ bot.on("callback_query", async (ctx) => {
 
       await ctx.reply("Please enter the account name:");
     } else if (queryData === "gethistoricalfunding") {
+      // Prompt the user to input the market symbol
+      await ctx.reply("Please enter the market symbol (e.g., BTC-USD):");
+
+      // Set the session state to indicate that the bot is awaiting the market symbol input
+      ctx.session.awaitingMarketSymbol = true;
+    } else if (queryData === "getmarkets") {
       const client = new DydxClient(HTTP_HOST);
 
-      // Assuming `historicalFunding` is an array of objects
-      const { historicalFunding } = await client.public.getHistoricalFunding({
-        market: Market.BTC_USD,
-      });
+      const { markets } = await client.public.getMarkets();
+      if (markets) {
+        // Convert markets object to an array of objects
+        const marketsArray = Object.values(markets);
 
-      if (historicalFunding && historicalFunding.length > 0) {
-        const ws = XLSX.utils.json_to_sheet(historicalFunding);
+        const ws = XLSX.utils.json_to_sheet(marketsArray);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
+        const xlsxFileName = `marketsdata_${timestamp}.xlsx`;
 
         XLSX.writeFile(wb, xlsxFileName);
 
         ctx.replyWithDocument(new InputFile(xlsxFileName), {
-          caption: `Historical Funding Data - ${timestamp}`,
+          caption: `Markets Data - ${timestamp}`,
         });
       } else {
-        ctx.reply("No historical funding data available.");
+        ctx.reply("No markets data available.");
       }
     }
-
-    await ctx.answerCallbackQuery();
   } catch (error) {
     if (
       error.description ===
@@ -384,8 +466,41 @@ bot.on("message", async (ctx) => {
         );
       }
     }
+
+    if (ctx.session.awaitingMarketSymbol && ctx.message.text) {
+      const marketSymbol = ctx.message.text.trim();
+
+      // Reset the session state
+      ctx.session.awaitingMarketSymbol = false;
+
+      // Proceed with fetching historical funding data based on the provided market symbol
+      const client = new DydxClient(HTTP_HOST);
+
+      const { historicalFunding } = await client.public.getHistoricalFunding({
+        market: marketSymbol,
+      });
+
+      if (historicalFunding && historicalFunding.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(historicalFunding);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
+
+        XLSX.writeFile(wb, xlsxFileName);
+
+        await ctx.replyWithDocument(new InputFile(xlsxFileName), {
+          caption: `Historical Funding Data - ${timestamp}`,
+        });
+      } else {
+        await ctx.reply(
+          "No historical funding data available for the provided market symbol."
+        );
+      }
+    }
   } catch (error) {
-    await ctx.reply(`Error settingUpAccount: ${error.message}`);
+    await ctx.reply(`Error: ${error.message}`);
   }
 });
 
