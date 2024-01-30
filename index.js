@@ -668,6 +668,94 @@ bot.on("callback_query", async (ctx) => {
       } else {
         throw new Error("No selected account");
       }
+    } else if (queryData === "getaccounts") {
+      if (ctx.session.selectedAccount) {
+        const web3 = new Web3();
+        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
+        const address = web3.eth.accounts.wallet[0].address;
+        // Confirm that the provided information is correct
+        if (!address) {
+          throw new Error("Invalid private key format");
+        }
+        const client = new DydxClient(HTTP_HOST, { web3 });
+        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
+          address
+        );
+        client.apiKeyCredentials = apiCreds;
+        const { accounts } = await client.private.getAccounts();
+        logger.info(
+          `ID: ${userId} request get accounts `,
+          JSON.stringify(accounts)
+        );
+        if (accounts.length > 0) {
+          const flattenedAccounts = accounts.map((account) => {
+            // Convert the openPositions object to an array of objects
+            const openPositionsArray = Object.entries(
+              account.openPositions
+            ).map(([key, value]) => ({
+              market: key,
+              ...value,
+            }));
+            return { ...account, openPositions: openPositionsArray };
+          });
+
+          const wb = XLSX.utils.book_new();
+
+          // Convert the accounts array to a sheet
+          const wsAccounts = XLSX.utils.json_to_sheet(flattenedAccounts);
+          XLSX.utils.book_append_sheet(wb, wsAccounts, "Accounts");
+
+          // Create separate sheets for each market in openPositions data
+          flattenedAccounts.forEach((account, index) => {
+            const openPositions = account.openPositions;
+            openPositions.forEach((position, positionIndex) => {
+              const wsOpenPositions = XLSX.utils.json_to_sheet([position]);
+              const marketName = `Open Positions - ${position.market}`;
+              XLSX.utils.book_append_sheet(wb, wsOpenPositions, marketName);
+            });
+          });
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const xlsxFileName = `accounts_${timestamp}.xlsx`;
+
+          // Define the directory path
+          const userDirectory = path.join(__dirname, "data", userId.toString());
+
+          // Ensure the directory exists, creating it if necessary
+          if (!fs.existsSync(userDirectory)) {
+            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+          }
+
+          // Construct the file path
+          const filePath = path.join(userDirectory, xlsxFileName);
+
+          // Write the file to the specified directory
+          XLSX.writeFile(wb, filePath);
+
+          // Create a promise to wait for the file to be written
+          const waitForFile = new Promise((resolve, reject) => {
+            const checkFile = () => {
+              if (fs.existsSync(filePath)) {
+                resolve();
+              } else {
+                setTimeout(checkFile, 100); // Check again after a short delay
+              }
+            };
+            checkFile();
+          });
+
+          // Wait for the file to be written before replying with the document
+          waitForFile.then(() => {
+            ctx.replyWithDocument(new InputFile(filePath), {
+              caption: `Accounts and Open Positions Data - ${timestamp}`,
+            });
+          });
+        } else {
+          await ctx.reply(`No accounts data available.`);
+        }
+      } else {
+        throw new Error("No selected account");
+      }
     }
 
     await ctx.answerCallbackQuery();
