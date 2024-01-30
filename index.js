@@ -266,7 +266,6 @@ bot.command("dydxprivatemenus", async (ctx) => {
     dydxMenus.text("Get Positions", `getposition`);
     dydxMenus.text("Get Transfers", "gettransfer");
     dydxMenus.row().text("Get Orders", "getorders");
-    dydxMenus.text("Get Active Order", "getactiveorders");
     dydxMenus.row().text("Get Funding Payment", "getfundingpayment");
     dydxMenus.text("Get Accounts", "getaccounts");
 
