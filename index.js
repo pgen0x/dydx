@@ -334,12 +334,12 @@ bot.on("callback_query", async (ctx) => {
       const accountKey = queryData.replace("getaccount_", "");
       const account = userAccounts[accountKey];
 
-      if (account && account.name && account.privateKey) {
+      if (account && account.name && account.apiKey) {
         // Mark the account as selected
         ctx.session.selectedAccount = {
           accountKey,
           name: account.name,
-          privateKey: account.privateKey,
+          apiKey: account.apiKey,
           address: account.address,
           user: account.user,
         };
@@ -418,17 +418,8 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getposition") {
       if (ctx.session.selectedAccount) {
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = ctx.session.selectedAccount.apiKey;
         client.apiKeyCredentials = apiCreds;
         const { positions } = await client.private.getPositions();
         logger.info(`ID: ${userId} request get positions `, positions);
@@ -480,17 +471,8 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "gettransfer") {
       if (ctx.session.selectedAccount) {
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = ctx.session.selectedAccount.apiKey;
         client.apiKeyCredentials = apiCreds;
         const { transfers } = await client.private.getTransfers();
         logger.info(`ID: ${userId} request get transfers `, transfers);
@@ -542,17 +524,8 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getorders") {
       if (ctx.session.selectedAccount) {
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = ctx.session.selectedAccount.apiKey;
         client.apiKeyCredentials = apiCreds;
         const { orders } = await client.private.getOrders();
         logger.info(`ID: ${userId} request get orders `, orders);
@@ -604,17 +577,8 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getfundingpayment") {
       if (ctx.session.selectedAccount) {
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = ctx.session.selectedAccount.apiKey;
         client.apiKeyCredentials = apiCreds;
         const { fundingPayments } = await client.private.getFundingPayments();
 
@@ -670,17 +634,8 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getaccounts") {
       if (ctx.session.selectedAccount) {
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(ctx.session.selectedAccount.privateKey);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = ctx.session.selectedAccount.apiKey;
         client.apiKeyCredentials = apiCreds;
         const { accounts } = await client.private.getAccounts();
         logger.info(
@@ -790,28 +745,21 @@ bot.on("message", async (ctx) => {
         // Save the entered account name and prompt for the private key
         settingUpAccount.accountName = messageText;
         settingUpAccount.step = 2;
-        await ctx.reply("Please enter the private key for the account:");
+        await ctx.reply(
+          `Please enter the <b>API Key</b> for the account:\n\nYou can find it on the devtools on your browser in field <b><i>API_KEY_PAIRS</i></b>\n\nFormat Code:\n<pre>{
+  "walletAddress": "0x9321...a79E",
+  "secret": "vJEfdXTI_opuNFXc...ygW",
+  "key": "52d44109-...-...-...-99193b0b5263",
+  "passphrase": "xMnx...1au-fvnT",
+  "walletType": "METAMASK"
+}</pre>`,
+          { parse_mode: "HTML" }
+        );
       } else if (step === 2) {
-        // Validate the private key (You may want to add additional validation)
-        if (!messageText.startsWith("0x")) {
-          throw new Error(
-            "Invalid private key format. It should start with '0x'."
-          );
-        }
-        const web3 = new Web3();
-        web3.eth.accounts.wallet.add(messageText);
-        const address = web3.eth.accounts.wallet[0].address;
-        // Confirm that the provided information is correct
-        if (!address) {
-          throw new Error("Invalid private key format");
-        }
-        // Save the private key for the user and account
         const newAccountNumber = Object.keys(accounts[userId] || {}).length + 1;
         const accountKey = `account_${newAccountNumber}`;
-        const client = new DydxClient(HTTP_HOST, { web3 });
-        const apiCreds = await client.onboarding.recoverDefaultApiCredentials(
-          address
-        );
+        const client = new DydxClient(HTTP_HOST);
+        const apiCreds = JSON.parse(messageText);
         client.apiKeyCredentials = apiCreds;
         const { user } = await client.private.getUser();
         if (!accounts[userId]) {
@@ -820,20 +768,19 @@ bot.on("message", async (ctx) => {
 
         accounts[userId][accountKey] = {
           name: settingUpAccount.accountName,
-          privateKey: messageText,
-          address,
+          apiKey: JSON.parse(messageText),
+          address: user.ethereumAddress,
           user,
         };
+
         saveAccounts();
 
         // Respond to the user
-        await ctx.reply(
-          `Private key for Account ${newAccountNumber} set successfully.`
-        );
+        await ctx.reply(`Account ${newAccountNumber} set successfully.`);
         delete ctx.session.settingUpAccount; // Clear the settingUpAccount state
 
         logger.info(
-          `Private key set for user ${userId}, Account ${newAccountNumber}: ${messageText}`
+          `Account ${user.ethereumAddress} set for user ${userId}, Account ${newAccountNumber}`
         );
       }
     }
