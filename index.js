@@ -1,7 +1,5 @@
-const { DydxMarket } = require("@dydxprotocol/starkex-lib");
-const { DydxClient, Market } = require("@dydxprotocol/v3-client");
-const { Bot, Context, session, InlineKeyboard, InputFile } = require("grammy");
-const Web3 = require("web3");
+const { DydxClient } = require("@dydxprotocol/v3-client");
+const { Bot, session, InlineKeyboard, InputFile } = require("grammy");
 const fs = require("fs");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -26,20 +24,6 @@ function initial() {
   return {
     settingUpAccount: {},
   };
-}
-
-async function saveToJsonFile(filename, data) {
-  try {
-    // Convert data to a JSON string with indentation for better readability
-    const jsonData = JSON.stringify(data, null, 2);
-
-    // Write the JSON string to the file
-    await fs.promises.writeFile(filename, jsonData);
-
-    console.log(`Data saved to ${filename}`);
-  } catch (error) {
-    console.error(`Error saving data to ${filename}:`, error);
-  }
 }
 
 let accounts = loadAccounts();
@@ -128,8 +112,276 @@ async function updateAccountsMessage(ctx) {
   });
 }
 
+async function executeGetPositions(ctx, params) {
+  const userId = ctx.from.id;
+  const client = new DydxClient(HTTP_HOST);
+  const apiCreds = ctx.session.selectedAccount.apiKey;
+  client.apiKeyCredentials = apiCreds;
+
+  const { positions } = params
+    ? await client.private.getPositions(params)
+    : await client.private.getPositions();
+  logger.info(`ID: ${userId} request get positions `, positions);
+  if (positions.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(positions);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxFileName = `positions_${timestamp}.xlsx`;
+
+    // Define the directory path
+    const userDirectory = path.join(__dirname, "data", userId.toString());
+
+    // Ensure the directory exists, creating it if necessary
+    if (!fs.existsSync(userDirectory)) {
+      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+    }
+
+    // Construct the file path
+    const filePath = path.join(userDirectory, xlsxFileName);
+
+    // Write the file to the specified directory
+    XLSX.writeFile(wb, filePath);
+
+    // Create a promise to wait for the file to be written
+    const waitForFile = new Promise((resolve, reject) => {
+      const checkFile = () => {
+        if (fs.existsSync(filePath)) {
+          resolve();
+        } else {
+          setTimeout(checkFile, 100); // Check again after a short delay
+        }
+      };
+      checkFile();
+    });
+
+    // Wait for the file to be written before replying with the document
+    waitForFile.then(() => {
+      ctx.replyWithDocument(new InputFile(filePath), {
+        caption: `Position Data - ${timestamp}`,
+      });
+    });
+  } else {
+    await ctx.reply(`No positions data available.`);
+  }
+}
+
+async function executeGetTransfers(ctx, params) {
+  const userId = ctx.from.id;
+  const client = new DydxClient(HTTP_HOST);
+  const apiCreds = ctx.session.selectedAccount.apiKey;
+  client.apiKeyCredentials = apiCreds;
+
+  const { transfers } = params
+    ? await client.private.getTransfers(params)
+    : await client.private.getTransfers();
+  logger.info(`ID: ${userId} request get transfers `, transfers);
+  if (transfers.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(transfers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxFileName = `transfers_${timestamp}.xlsx`;
+
+    // Define the directory path
+    const userDirectory = path.join(__dirname, "data", userId.toString());
+
+    // Ensure the directory exists, creating it if necessary
+    if (!fs.existsSync(userDirectory)) {
+      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+    }
+
+    // Construct the file path
+    const filePath = path.join(userDirectory, xlsxFileName);
+
+    // Write the file to the specified directory
+    XLSX.writeFile(wb, filePath);
+
+    // Create a promise to wait for the file to be written
+    const waitForFile = new Promise((resolve, reject) => {
+      const checkFile = () => {
+        if (fs.existsSync(filePath)) {
+          resolve();
+        } else {
+          setTimeout(checkFile, 100); // Check again after a short delay
+        }
+      };
+      checkFile();
+    });
+
+    // Wait for the file to be written before replying with the document
+    waitForFile.then(() => {
+      ctx.replyWithDocument(new InputFile(filePath), {
+        caption: `Transfers Data - ${timestamp}`,
+      });
+    });
+  } else {
+    await ctx.reply(`No transfers data available.`);
+  }
+}
+
+async function executeGetOrders(ctx, params) {
+  const userId = ctx.from.id;
+  const client = new DydxClient(HTTP_HOST);
+  const apiCreds = ctx.session.selectedAccount.apiKey;
+  client.apiKeyCredentials = apiCreds;
+  const { orders } = params
+    ? await client.private.getOrders(params)
+    : await client.private.getOrders();
+  logger.info(`ID: ${userId} request get orders `, orders);
+  if (orders.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(orders);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxFileName = `orders_${timestamp}.xlsx`;
+    // Define the directory path
+    const userDirectory = path.join(__dirname, "data", userId.toString());
+    // Ensure the directory exists, creating it if necessary
+    if (!fs.existsSync(userDirectory)) {
+      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+    }
+    // Construct the file path
+    const filePath = path.join(userDirectory, xlsxFileName);
+    // Write the file to the specified directory
+    XLSX.writeFile(wb, filePath);
+    // Create a promise to wait for the file to be written
+    const waitForFile = new Promise((resolve, reject) => {
+      const checkFile = () => {
+        if (fs.existsSync(filePath)) {
+          resolve();
+        } else {
+          setTimeout(checkFile, 100); // Check again after a short delay
+        }
+      };
+      checkFile();
+    });
+    // Wait for the file to be written before replying with the document
+    waitForFile.then(() => {
+      ctx.replyWithDocument(new InputFile(filePath), {
+        caption: `Orders Data - ${timestamp}`,
+      });
+    });
+  } else {
+    await ctx.reply(`No orders data available.`);
+  }
+}
+
+async function executeGetFundingPayment(ctx, params) {
+  const userId = ctx.from.id;
+  const client = new DydxClient(HTTP_HOST);
+  const apiCreds = ctx.session.selectedAccount.apiKey;
+  client.apiKeyCredentials = apiCreds;
+  const { fundingPayments } = params
+    ? await client.private.getFundingPayments(params)
+    : await client.private.getFundingPayments();
+
+  logger.info(`ID: ${userId} request get fundingPayments `, fundingPayments);
+  if (fundingPayments.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(fundingPayments);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxFileName = `fundingPayments_${timestamp}.xlsx`;
+
+    // Define the directory path
+    const userDirectory = path.join(__dirname, "data", userId.toString());
+
+    // Ensure the directory exists, creating it if necessary
+    if (!fs.existsSync(userDirectory)) {
+      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+    }
+
+    // Construct the file path
+    const filePath = path.join(userDirectory, xlsxFileName);
+
+    // Write the file to the specified directory
+    XLSX.writeFile(wb, filePath);
+
+    // Create a promise to wait for the file to be written
+    const waitForFile = new Promise((resolve, reject) => {
+      const checkFile = () => {
+        if (fs.existsSync(filePath)) {
+          resolve();
+        } else {
+          setTimeout(checkFile, 100); // Check again after a short delay
+        }
+      };
+      checkFile();
+    });
+
+    // Wait for the file to be written before replying with the document
+    waitForFile.then(() => {
+      ctx.replyWithDocument(new InputFile(filePath), {
+        caption: `Funding Payments Data - ${timestamp}`,
+      });
+    });
+  } else {
+    await ctx.reply(`No funding payments data available.`);
+  }
+}
+
+async function executeGetHistoricalFunding(ctx, params) {
+  const userId = ctx.from.id;
+  const client = new DydxClient(HTTP_HOST);
+  console.log(params);
+  const { historicalFunding } = await client.public.getHistoricalFunding(
+    params
+  );
+  logger.info(
+    `ID: ${userId} request get HistoricalFunding `,
+    historicalFunding
+  );
+
+  if (historicalFunding && historicalFunding.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(historicalFunding);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
+
+    // Define the directory path
+    const userDirectory = path.join(__dirname, "data", userId.toString());
+
+    // Ensure the directory exists, creating it if necessary
+    if (!fs.existsSync(userDirectory)) {
+      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+    }
+
+    // Construct the file path
+    const filePath = path.join(userDirectory, xlsxFileName);
+
+    // Write the file to the specified directory
+    XLSX.writeFile(wb, filePath);
+
+    // Create a promise to wait for the file to be written
+    const waitForFile = new Promise((resolve, reject) => {
+      const checkFile = () => {
+        if (fs.existsSync(filePath)) {
+          resolve();
+        } else {
+          setTimeout(checkFile, 100); // Check again after a short delay
+        }
+      };
+      checkFile();
+    });
+
+    // Wait for the file to be written before replying with the document
+    waitForFile.then(() => {
+      ctx.replyWithDocument(new InputFile(filePath), {
+        caption: `Historical Funding Data - ${timestamp}`,
+      });
+    });
+  } else {
+    await ctx.reply(`No historical funding data available.`);
+  }
+}
+
 bot.command("ping", async (ctx) => {
-  const chatId = ctx.chat.id;
   const healthcheck = {
     uptime: process.uptime(),
     message: "OK",
@@ -310,15 +562,7 @@ bot.command("help", async (ctx) => {
 
 bot.command("start", async (ctx) => {
   // Show help message
-  const helpMessage = `
-    <b>Available Commands:</b>
-    /ping - Check the bot's health and uptime.
-    /setaccount - Set up a new account.
-    /accounts - View and manage your saved accounts.
-    /dydxprivatemenus - View private information from dYdX.
-    /dydxpublicmenus - View public information from dYdX.
-    /help - Display this help message.
-  `;
+  const helpMessage = `Welcome to the DYDX Snap Bot!\n\nTo begin using the bot, you need to set up an account. This will allow you to access private information from dYdX.\n\n<b>Available Commands:</b>\n/ping - Check the bot's health and uptime.\n/setaccount - Set up a new account.\n/accounts - View and manage your saved accounts.\n/dydxprivatemenus - View private information from dYdX.\n/dydxpublicmenus - View public information from dYdX.\n/help - Display this help message.\n\nPlease note that access to private menus requires setting up an account first. Public menus can be accessed without setting up an account.`;
 
   await ctx.reply(helpMessage, { parse_mode: "HTML" });
 });
@@ -361,11 +605,11 @@ bot.on("callback_query", async (ctx) => {
 
       await ctx.reply("Please enter the account name:");
     } else if (queryData === "gethistoricalfunding") {
-      // Prompt the user to input the market symbol
-      await ctx.reply("Please enter the market symbol (e.g., BTC-USD):");
+      await ctx.reply(
+        "Enter the market symbol (e.g., BTC-USD)\n\nThis field is required and cannot be skipped:"
+      );
 
-      // Set the session state to indicate that the bot is awaiting the market symbol input
-      ctx.session.awaitingMarketSymbol = true;
+      ctx.session.getHistoricalFunding = { step: 1 };
     } else if (queryData === "getmarkets") {
       const client = new DydxClient(HTTP_HOST);
 
@@ -418,217 +662,49 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getposition") {
       if (ctx.session.selectedAccount) {
-        const client = new DydxClient(HTTP_HOST);
-        const apiCreds = ctx.session.selectedAccount.apiKey;
-        client.apiKeyCredentials = apiCreds;
-        const { positions } = await client.private.getPositions();
-        logger.info(`ID: ${userId} request get positions `, positions);
-        if (positions.length > 0) {
-          const ws = XLSX.utils.json_to_sheet(positions);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const xlsxFileName = `positions_${timestamp}.xlsx`;
-
-          // Define the directory path
-          const userDirectory = path.join(__dirname, "data", userId.toString());
-
-          // Ensure the directory exists, creating it if necessary
-          if (!fs.existsSync(userDirectory)) {
-            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        await ctx.reply(
+          "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
+          {
+            parse_mode: "HTML",
           }
-
-          // Construct the file path
-          const filePath = path.join(userDirectory, xlsxFileName);
-
-          // Write the file to the specified directory
-          XLSX.writeFile(wb, filePath);
-
-          // Create a promise to wait for the file to be written
-          const waitForFile = new Promise((resolve, reject) => {
-            const checkFile = () => {
-              if (fs.existsSync(filePath)) {
-                resolve();
-              } else {
-                setTimeout(checkFile, 100); // Check again after a short delay
-              }
-            };
-            checkFile();
-          });
-
-          // Wait for the file to be written before replying with the document
-          waitForFile.then(() => {
-            ctx.replyWithDocument(new InputFile(filePath), {
-              caption: `Position Data - ${timestamp}`,
-            });
-          });
-        } else {
-          await ctx.reply(`No positions data available.`);
-        }
+        );
+        ctx.session.getPositions = { step: 1 };
       } else {
         throw new Error("No selected account");
       }
     } else if (queryData === "gettransfer") {
       if (ctx.session.selectedAccount) {
-        const client = new DydxClient(HTTP_HOST);
-        const apiCreds = ctx.session.selectedAccount.apiKey;
-        client.apiKeyCredentials = apiCreds;
-        const { transfers } = await client.private.getTransfers();
-        logger.info(`ID: ${userId} request get transfers `, transfers);
-        if (transfers.length > 0) {
-          const ws = XLSX.utils.json_to_sheet(transfers);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const xlsxFileName = `transfers_${timestamp}.xlsx`;
-
-          // Define the directory path
-          const userDirectory = path.join(__dirname, "data", userId.toString());
-
-          // Ensure the directory exists, creating it if necessary
-          if (!fs.existsSync(userDirectory)) {
-            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        await ctx.reply(
+          "Enter the transfer type. Can be <code>DEPOSIT</code>, <code>WITHDRAWAL</code> or <code>FAST_WITHDRAWAL</code>\n\nThis field is optional. Send /skip to skip",
+          {
+            parse_mode: "HTML",
           }
-
-          // Construct the file path
-          const filePath = path.join(userDirectory, xlsxFileName);
-
-          // Write the file to the specified directory
-          XLSX.writeFile(wb, filePath);
-
-          // Create a promise to wait for the file to be written
-          const waitForFile = new Promise((resolve, reject) => {
-            const checkFile = () => {
-              if (fs.existsSync(filePath)) {
-                resolve();
-              } else {
-                setTimeout(checkFile, 100); // Check again after a short delay
-              }
-            };
-            checkFile();
-          });
-
-          // Wait for the file to be written before replying with the document
-          waitForFile.then(() => {
-            ctx.replyWithDocument(new InputFile(filePath), {
-              caption: `Transfers Data - ${timestamp}`,
-            });
-          });
-        } else {
-          await ctx.reply(`No transfers data available.`);
-        }
+        );
+        ctx.session.getTransfers = { step: 1 };
       } else {
         throw new Error("No selected account");
       }
     } else if (queryData === "getorders") {
       if (ctx.session.selectedAccount) {
-        const client = new DydxClient(HTTP_HOST);
-        const apiCreds = ctx.session.selectedAccount.apiKey;
-        client.apiKeyCredentials = apiCreds;
-        const { orders } = await client.private.getOrders();
-        logger.info(`ID: ${userId} request get orders `, orders);
-        if (orders.length > 0) {
-          const ws = XLSX.utils.json_to_sheet(orders);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const xlsxFileName = `orders_${timestamp}.xlsx`;
-
-          // Define the directory path
-          const userDirectory = path.join(__dirname, "data", userId.toString());
-
-          // Ensure the directory exists, creating it if necessary
-          if (!fs.existsSync(userDirectory)) {
-            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        await ctx.reply(
+          "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
+          {
+            parse_mode: "HTML",
           }
-
-          // Construct the file path
-          const filePath = path.join(userDirectory, xlsxFileName);
-
-          // Write the file to the specified directory
-          XLSX.writeFile(wb, filePath);
-
-          // Create a promise to wait for the file to be written
-          const waitForFile = new Promise((resolve, reject) => {
-            const checkFile = () => {
-              if (fs.existsSync(filePath)) {
-                resolve();
-              } else {
-                setTimeout(checkFile, 100); // Check again after a short delay
-              }
-            };
-            checkFile();
-          });
-
-          // Wait for the file to be written before replying with the document
-          waitForFile.then(() => {
-            ctx.replyWithDocument(new InputFile(filePath), {
-              caption: `Orders Data - ${timestamp}`,
-            });
-          });
-        } else {
-          await ctx.reply(`No orders data available.`);
-        }
+        );
+        ctx.session.getOrders = { step: 1 };
       } else {
         throw new Error("No selected account");
       }
     } else if (queryData === "getfundingpayment") {
       if (ctx.session.selectedAccount) {
-        const client = new DydxClient(HTTP_HOST);
-        const apiCreds = ctx.session.selectedAccount.apiKey;
-        client.apiKeyCredentials = apiCreds;
-        const { fundingPayments } = await client.private.getFundingPayments();
-
-        logger.info(
-          `ID: ${userId} request get fundingPayments `,
-          fundingPayments
-        );
-        if (fundingPayments.length > 0) {
-          const ws = XLSX.utils.json_to_sheet(fundingPayments);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-          const xlsxFileName = `fundingPayments_${timestamp}.xlsx`;
-
-          // Define the directory path
-          const userDirectory = path.join(__dirname, "data", userId.toString());
-
-          // Ensure the directory exists, creating it if necessary
-          if (!fs.existsSync(userDirectory)) {
-            fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+        await ctx.reply(
+          "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
+          {
+            parse_mode: "HTML",
           }
-
-          // Construct the file path
-          const filePath = path.join(userDirectory, xlsxFileName);
-
-          // Write the file to the specified directory
-          XLSX.writeFile(wb, filePath);
-
-          // Create a promise to wait for the file to be written
-          const waitForFile = new Promise((resolve, reject) => {
-            const checkFile = () => {
-              if (fs.existsSync(filePath)) {
-                resolve();
-              } else {
-                setTimeout(checkFile, 100); // Check again after a short delay
-              }
-            };
-            checkFile();
-          });
-
-          // Wait for the file to be written before replying with the document
-          waitForFile.then(() => {
-            ctx.replyWithDocument(new InputFile(filePath), {
-              caption: `Funding Payments Data - ${timestamp}`,
-            });
-          });
-        } else {
-          await ctx.reply(`No funding payments data available.`);
-        }
+        );
+        ctx.session.getFundingPayment = { step: 1 };
       } else {
         throw new Error("No selected account");
       }
@@ -734,9 +810,13 @@ bot.on("callback_query", async (ctx) => {
 
 bot.on("message", async (ctx) => {
   const messageText = ctx.message.text;
-  const userId = ctx.from.id;
   try {
     const settingUpAccount = ctx.session.settingUpAccount;
+    const getPositions = ctx.session.getPositions;
+    const getTransfers = ctx.session.getTransfers;
+    const getOrders = ctx.session.getOrders;
+    const getFundingPayment = ctx.session.getFundingPayment;
+    const getHistoricalFunding = ctx.session.getHistoricalFunding;
 
     if (settingUpAccount) {
       const { userId, step } = settingUpAccount;
@@ -785,63 +865,311 @@ bot.on("message", async (ctx) => {
       }
     }
 
-    if (ctx.session.awaitingMarketSymbol && ctx.message.text) {
-      const marketSymbol = ctx.message.text.trim();
-
-      // Reset the session state
-      ctx.session.awaitingMarketSymbol = false;
-
-      // Proceed with fetching historical funding data based on the provided market symbol
-      const client = new DydxClient(HTTP_HOST);
-
-      const { historicalFunding } = await client.public.getHistoricalFunding({
-        market: marketSymbol,
-      });
-
-      if (historicalFunding && historicalFunding.length > 0) {
-        const ws = XLSX.utils.json_to_sheet(historicalFunding);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
-
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
-
-        // Define the directory path
-        const userDirectory = path.join(__dirname, "data", userId.toString());
-
-        // Ensure the directory exists, creating it if necessary
-        if (!fs.existsSync(userDirectory)) {
-          fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
-        }
-
-        // Construct the file path
-        const filePath = path.join(userDirectory, xlsxFileName);
-
-        // Write the file to the specified directory
-        XLSX.writeFile(wb, filePath);
-
-        // Create a promise to wait for the file to be written
-        const waitForFile = new Promise((resolve, reject) => {
-          const checkFile = () => {
-            if (fs.existsSync(filePath)) {
-              resolve();
-            } else {
-              setTimeout(checkFile, 100); // Check again after a short delay
-            }
+    if (getHistoricalFunding) {
+      let { step, data } = getHistoricalFunding;
+      switch (step) {
+        case 1:
+          ctx.session.getHistoricalFunding = {
+            ...getHistoricalFunding,
+            data: { ...data, market: messageText }, // Merge with existing data
           };
-          checkFile();
-        });
+          await ctx.reply(
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for effectiveBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 2:
+          if (messageText.toLowerCase() === "/skip") {
+            await executeGetHistoricalFunding(
+              ctx,
+              ctx.session.getHistoricalFunding.data
+            );
+            delete ctx.session.getHistoricalFunding;
+            break;
+          } else {
+            // Parse the date to the required format
+            const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
+            const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
 
-        // Wait for the file to be written before replying with the document
-        waitForFile.then(() => {
-          ctx.replyWithDocument(new InputFile(filePath), {
-            caption: `Historical Funding Data - ${timestamp}`,
-          });
-        });
-      } else {
-        await ctx.reply(
-          "No historical funding data available for the provided market symbol."
-        );
+            ctx.session.getHistoricalFunding = {
+              ...getHistoricalFunding,
+              data: { ...data, effectiveBeforeOrAt: formattedDate },
+            };
+            await executeGetHistoricalFunding(
+              ctx,
+              ctx.session.getHistoricalFunding.data
+            );
+            delete ctx.session.getHistoricalFunding;
+            break;
+          }
+        default:
+          break;
+      }
+      if (ctx.session.getHistoricalFunding) {
+        ctx.session.getHistoricalFunding.step = step;
+      }
+    }
+
+    if (getPositions) {
+      let { step, data } = getPositions;
+      switch (step) {
+        case 1:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getPositions = {
+              ...getPositions,
+              data: { ...data, market: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the status. Can be <code>OPEN</code>, <code>CLOSED</code> or <code>LIQUIDATED</code>\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 2:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getPositions = {
+              ...getPositions,
+              data: { ...data, status: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the limit\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 3:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getPositions = {
+              ...getPositions,
+              data: { ...data, limit: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for createdBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 4:
+          if (messageText.toLowerCase() !== "/skip") {
+            const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
+            const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
+            ctx.session.getPositions = {
+              ...getPositions,
+              data: { ...data, createdBeforeOrAt: formattedDate },
+            };
+          }
+          await executeGetPositions(ctx, ctx.session.getPositions.data);
+          delete ctx.session.getPositions;
+          break;
+        default:
+          break;
+      }
+      if (ctx.session.getPositions) {
+        ctx.session.getPositions.step = step; // Update the step
+      }
+    }
+
+    if (getTransfers) {
+      let { step, data } = getTransfers;
+      switch (step) {
+        case 1:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getTransfers = {
+              ...getTransfers,
+              data: { ...data, transferType: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the limit\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 2:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getTransfers = {
+              ...getTransfers,
+              data: { ...data, limit: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for createdBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 3:
+          if (messageText.toLowerCase() !== "/skip") {
+            const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
+            const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
+            ctx.session.getTransfers = {
+              ...getTransfers,
+              data: { ...data, createdBeforeOrAt: formattedDate },
+            };
+          }
+          await executeGetTransfers(ctx, ctx.session.getTransfers.data);
+          delete ctx.session.getTransfers;
+          break;
+        default:
+          break;
+      }
+      if (ctx.session.getTransfers) {
+        ctx.session.getTransfers.step = step; // Update the step
+      }
+    }
+
+    if (getOrders) {
+      let { step, data } = getOrders;
+      switch (step) {
+        case 1:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getOrders = {
+              ...getOrders,
+              data: { ...data, market: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the side. Either <code>BUY</code> or <code>SELL</code>\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 2:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getOrders = {
+              ...getOrders,
+              data: { ...data, side: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the type. Can be <code>LIMIT</code>, <code>STOP</code>, <code>TRAILING_STOP</code> or <code>TAKE_PROFIT</code>\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 3:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getOrders = {
+              ...getOrders,
+              data: { ...data, type: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the limit\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 4:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getOrders = {
+              ...getOrders,
+              data: { ...data, limit: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for createdBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 5:
+          if (messageText.toLowerCase() !== "/skip") {
+            const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
+            const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
+            ctx.session.getOrders = {
+              ...getOrders,
+              data: { ...data, createdBeforeOrAt: formattedDate },
+            };
+          }
+          await executeGetOrders(ctx, ctx.session.getOrders.data);
+          delete ctx.session.getOrders;
+          break;
+        default:
+          break;
+      }
+      if (ctx.session.getPositions) {
+        ctx.session.getPositions.step = step;
+      }
+    }
+
+    if (getFundingPayment) {
+      let { step, data } = getFundingPayment;
+      switch (step) {
+        case 1:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getFundingPayment = {
+              ...getFundingPayment,
+              data: { ...data, market: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the limit\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 2:
+          if (messageText.toLowerCase() !== "/skip") {
+            ctx.session.getFundingPayment = {
+              ...getFundingPayment,
+              data: { ...data, limit: messageText },
+            };
+          }
+          await ctx.reply(
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for createdBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            {
+              parse_mode: "HTML",
+            }
+          );
+          step++;
+          break;
+        case 4:
+          if (messageText.toLowerCase() !== "/skip") {
+            const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
+            const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
+            ctx.session.getFundingPayment = {
+              ...getFundingPayment,
+              data: { ...data, createdBeforeOrAt: formattedDate },
+            };
+          }
+          await executeGetFundingPayment(
+            ctx,
+            ctx.session.getFundingPayment.data
+          );
+          delete ctx.session.getFundingPayment;
+          break;
+        default:
+          break;
+      }
+      if (ctx.session.getFundingPayment) {
+        ctx.session.getFundingPayment.step = step; // Update the step
       }
     }
   } catch (error) {
