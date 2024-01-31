@@ -325,59 +325,63 @@ async function executeGetFundingPayment(ctx, params) {
 }
 
 async function executeGetHistoricalFunding(ctx, params) {
-  const userId = ctx.from.id;
-  const client = new DydxClient(HTTP_HOST);
-  console.log(params);
-  const { historicalFunding } = await client.public.getHistoricalFunding(
-    params
-  );
-  logger.info(
-    `ID: ${userId} request get HistoricalFunding `,
-    historicalFunding
-  );
+  try {
+    const userId = ctx.from.id;
+    const client = new DydxClient(HTTP_HOST);
+    const { historicalFunding } = await client.public.getHistoricalFunding(
+      params
+    );
+    logger.info(
+      `ID: ${userId} request get HistoricalFunding `,
+      historicalFunding
+    );
 
-  if (historicalFunding && historicalFunding.length > 0) {
-    const ws = XLSX.utils.json_to_sheet(historicalFunding);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
+    if (historicalFunding && historicalFunding.length > 0) {
+      const ws = XLSX.utils.json_to_sheet(historicalFunding);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet 1");
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const xlsxFileName = `historicalfunding_${timestamp}.xlsx`;
 
-    // Define the directory path
-    const userDirectory = path.join(__dirname, "data", userId.toString());
+      // Define the directory path
+      const userDirectory = path.join(__dirname, "data", userId.toString());
 
-    // Ensure the directory exists, creating it if necessary
-    if (!fs.existsSync(userDirectory)) {
-      fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
-    }
+      // Ensure the directory exists, creating it if necessary
+      if (!fs.existsSync(userDirectory)) {
+        fs.mkdirSync(userDirectory, { recursive: true }); // Ensure parent directories are created if they don't exist
+      }
 
-    // Construct the file path
-    const filePath = path.join(userDirectory, xlsxFileName);
+      // Construct the file path
+      const filePath = path.join(userDirectory, xlsxFileName);
 
-    // Write the file to the specified directory
-    XLSX.writeFile(wb, filePath);
+      // Write the file to the specified directory
+      XLSX.writeFile(wb, filePath);
 
-    // Create a promise to wait for the file to be written
-    const waitForFile = new Promise((resolve, reject) => {
-      const checkFile = () => {
-        if (fs.existsSync(filePath)) {
-          resolve();
-        } else {
-          setTimeout(checkFile, 100); // Check again after a short delay
-        }
-      };
-      checkFile();
-    });
-
-    // Wait for the file to be written before replying with the document
-    waitForFile.then(() => {
-      ctx.replyWithDocument(new InputFile(filePath), {
-        caption: `Historical Funding Data - ${timestamp}`,
+      // Create a promise to wait for the file to be written
+      const waitForFile = new Promise((resolve, reject) => {
+        const checkFile = () => {
+          if (fs.existsSync(filePath)) {
+            resolve();
+          } else {
+            setTimeout(checkFile, 100); // Check again after a short delay
+          }
+        };
+        checkFile();
       });
-    });
-  } else {
-    await ctx.reply(`No historical funding data available.`);
+
+      // Wait for the file to be written before replying with the document
+      waitForFile.then(() => {
+        ctx.replyWithDocument(new InputFile(filePath), {
+          caption: `Historical Funding Data - ${timestamp}`,
+        });
+      });
+    } else {
+      await ctx.reply(`No historical funding data available.`);
+    }
+  } catch (error) {
+    logger.error(`Error on executeGetHistoricalFunding:`, error);
+    throw new Error("Something went wrong");
   }
 }
 
@@ -605,6 +609,7 @@ bot.on("callback_query", async (ctx) => {
 
       await ctx.reply("Please enter the account name:");
     } else if (queryData === "gethistoricalfunding") {
+      delete ctx.session.getHistoricalFunding;
       await ctx.reply(
         "Enter the market symbol (e.g., BTC-USD)\n\nThis field is required and cannot be skipped:"
       );
@@ -662,6 +667,7 @@ bot.on("callback_query", async (ctx) => {
       }
     } else if (queryData === "getposition") {
       if (ctx.session.selectedAccount) {
+        delete ctx.session.getPositions;
         await ctx.reply(
           "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
           {
@@ -673,6 +679,7 @@ bot.on("callback_query", async (ctx) => {
         throw new Error("No selected account");
       }
     } else if (queryData === "gettransfer") {
+      delete ctx.session.gettransfer;
       if (ctx.session.selectedAccount) {
         await ctx.reply(
           "Enter the transfer type. Can be <code>DEPOSIT</code>, <code>WITHDRAWAL</code> or <code>FAST_WITHDRAWAL</code>\n\nThis field is optional. Send /skip to skip",
@@ -685,6 +692,7 @@ bot.on("callback_query", async (ctx) => {
         throw new Error("No selected account");
       }
     } else if (queryData === "getorders") {
+      delete ctx.session.getOrders;
       if (ctx.session.selectedAccount) {
         await ctx.reply(
           "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
@@ -697,6 +705,7 @@ bot.on("callback_query", async (ctx) => {
         throw new Error("No selected account");
       }
     } else if (queryData === "getfundingpayment") {
+      delete ctx.session.getFundingPayment;
       if (ctx.session.selectedAccount) {
         await ctx.reply(
           "Enter the market symbol (e.g., BTC-USD)\n\nThis field is optional. Send /skip to skip",
