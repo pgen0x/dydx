@@ -390,7 +390,7 @@ bot.command("ping", async (ctx) => {
   };
   try {
     await ctx.reply(
-      `<b>pong!</b>\n\nuptime: ${healthcheck.uptime}\nmessage: ${healthcheck.message}\ntimezone: ${healthcheck.timezone}\ntimestamp:  ${healthcheck.timestamp}`,
+      `<b>pong!</b>\n\nuptime: ${healthcheck.uptime}\nmessage: ${healthcheck.message}\nserver timezone: ${healthcheck.timezone}\nserver timestamp:  ${healthcheck.timestamp}`,
       { parse_mode: "HTML" }
     );
   } catch (error) {
