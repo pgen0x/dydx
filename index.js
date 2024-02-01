@@ -1121,8 +1121,8 @@ bot.on("message", async (ctx) => {
         default:
           break;
       }
-      if (ctx.session.getPositions) {
-        ctx.session.getPositions.step = step;
+      if (ctx.session.getOrders) {
+        ctx.session.getOrders.step = step;
       }
     }
 
@@ -1152,7 +1152,7 @@ bot.on("message", async (ctx) => {
             };
           }
           await ctx.reply(
-            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for createdBeforeOrAt\n\nThis field is optional. Send /skip to skip",
+            "Enter the date in YYYY-MM-DD HH:MM (24 hours time format) for effectiveBeforeOrAt\n\nThis field is optional. Send /skip to skip",
             {
               parse_mode: "HTML",
             }
@@ -1165,7 +1165,7 @@ bot.on("message", async (ctx) => {
             const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
             ctx.session.getFundingPayment = {
               ...getFundingPayment,
-              data: { ...data, createdBeforeOrAt: formattedDate },
+              data: { ...data, effectiveBeforeOrAt: formattedDate },
             };
           }
           await executeGetFundingPayment(
