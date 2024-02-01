@@ -1159,7 +1159,7 @@ bot.on("message", async (ctx) => {
           );
           step++;
           break;
-        case 4:
+        case 3:
           if (messageText.toLowerCase() !== "/skip") {
             const date = moment.tz(messageText, "YYYY-MM-DD HH:mm", "UTC");
             const formattedDate = date.format("YYYY-MM-DDTHH:mm:ss");
