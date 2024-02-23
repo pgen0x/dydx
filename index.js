@@ -153,7 +153,7 @@ async function fetchAndSavePositions(userId, apiCreds, params) {
 		// Return filePath and timestamp for further use
 		return { filePath, timestamp };
 	} else {
-		throw new Error("No positions data available.");
+		throw new Error("No positions data available for");
 	}
 }
 
@@ -166,10 +166,10 @@ async function executeGetPositions(ctx, params) {
 			params
 		);
 		ctx.replyWithDocument(new InputFile(filePath), {
-			caption: `Position Data - ${timestamp}`,
+			caption: `Position Data ${ctx.session.selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await ctx.reply(error.message);
+		await ctx.reply(`${error.message} ${ctx.session.selectedAccount.name}.`);
 	}
 }
 
@@ -182,10 +182,13 @@ async function scheduleExecuteGetPositions(userId, selectedAccount, params) {
 			params
 		);
 		bot.api.sendDocument(userId, new InputFile(filePath), {
-			caption: `Position Data - ${timestamp}`,
+			caption: `Position Data ${selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await bot.api.sendMessage(userId, error.message);
+		await bot.api.sendMessage(
+			userId,
+			`${error.message} ${selectedAccount.name}.`
+		);
 	}
 }
 
@@ -218,7 +221,7 @@ async function fetchAndSaveTransfers(userId, apiCreds, params) {
 		// Return filePath and timestamp for further use
 		return { filePath, timestamp };
 	} else {
-		throw new Error("No transfers data available.");
+		throw new Error("No transfers data available for");
 	}
 }
 
@@ -231,10 +234,10 @@ async function executeGetTransfers(ctx, params) {
 			params
 		);
 		ctx.replyWithDocument(new InputFile(filePath), {
-			caption: `Transfers Data - ${timestamp}`,
+			caption: `Transfers Data ${ctx.session.selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await ctx.reply(error.message);
+		await ctx.reply(`${error.message} ${ctx.session.selectedAccount.name}.`);
 	}
 }
 
@@ -247,10 +250,13 @@ async function scheduleExecuteGetTransfers(userId, selectedAccount, params) {
 			params
 		);
 		bot.api.sendDocument(userId, new InputFile(filePath), {
-			caption: `Transfers Data - ${timestamp}`,
+			caption: `Transfers Data ${selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await bot.api.sendMessage(userId, error.message);
+		await bot.api.sendMessage(
+			userId,
+			`${error.message} ${selectedAccount.name}.`
+		);
 	}
 }
 
@@ -283,7 +289,7 @@ async function fetchAndSaveOrders(userId, apiCreds, params) {
 		// Return filePath and timestamp for further use
 		return { filePath, timestamp };
 	} else {
-		throw new Error("No orders data available.");
+		throw new Error("No orders data available for");
 	}
 }
 
@@ -296,10 +302,10 @@ async function executeGetOrders(ctx, params) {
 			params
 		);
 		ctx.replyWithDocument(new InputFile(filePath), {
-			caption: `Orders Data - ${timestamp}`,
+			caption: `Orders Data ${ctx.session.selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await ctx.reply(error.message);
+		await ctx.reply(`${error.message} ${ctx.session.selectedAccount.name}.`);
 	}
 }
 
@@ -312,10 +318,13 @@ async function scheduleExecuteGetOrders(userId, selectedAccount, params) {
 			params
 		);
 		bot.api.sendDocument(userId, new InputFile(filePath), {
-			caption: `Orders Data - ${timestamp}`,
+			caption: `Orders Data ${selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await bot.api.sendMessage(userId, error.message);
+		await bot.api.sendMessage(
+			userId,
+			`${error.message} ${selectedAccount.name}.`
+		);
 	}
 }
 
@@ -348,7 +357,7 @@ async function fetchAndSaveFundingPayments(userId, apiCreds, params) {
 		// Return filePath and timestamp for further use
 		return { filePath, timestamp };
 	} else {
-		throw new Error("No funding payments data available.");
+		throw new Error("No funding payments data available for");
 	}
 }
 
@@ -361,10 +370,10 @@ async function executeGetFundingPayment(ctx, params) {
 			params
 		);
 		ctx.replyWithDocument(new InputFile(filePath), {
-			caption: `Funding Payments Data - ${timestamp}`,
+			caption: `Funding Payments Data ${ctx.session.selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await ctx.reply(error.message);
+		await ctx.reply(`${error.message} ${ctx.session.selectedAccount.name}.`);
 	}
 }
 
@@ -381,10 +390,13 @@ async function scheduleExecuteGetFundingPayment(
 			params
 		);
 		bot.api.sendDocument(userId, new InputFile(filePath), {
-			caption: `Funding Payments Data - ${timestamp}`,
+			caption: `Funding Payments Data ${selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await bot.api.sendMessage(userId, error.message);
+		await bot.api.sendMessage(
+			userId,
+			`${error.message} ${selectedAccount.name}.`
+		);
 	}
 }
 
@@ -433,7 +445,7 @@ async function fetchAndSaveAccountsData(userId, apiCreds) {
 
 		return { filePath, timestamp };
 	} else {
-		throw new Error("No accounts data available.");
+		throw new Error("No accounts data available for");
 	}
 }
 
@@ -445,10 +457,10 @@ async function executeGetAccounts(ctx, selectedAccount) {
 			selectedAccount.apiKey
 		);
 		ctx.replyWithDocument(new InputFile(filePath), {
-			caption: `Accounts and Open Positions Data - ${timestamp}`,
+			caption: `Accounts and Open Positions Data ${ctx.session.selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await ctx.reply(error.message);
+		await ctx.reply(`${error.message} ${ctx.session.selectedAccount.name}.`);
 	}
 }
 
@@ -460,10 +472,13 @@ async function scheduleExecuteGetAccounts(userId, selectedAccount) {
 			selectedAccount.apiKey
 		);
 		bot.api.sendDocument(userId, new InputFile(filePath), {
-			caption: `Accounts and Open Positions Data - ${timestamp}`,
+			caption: `Accounts and Open Positions Data ${selectedAccount.name} - ${timestamp}`,
 		});
 	} catch (error) {
-		await bot.api.sendMessage(userId, error.message);
+		await bot.api.sendMessage(
+			userId,
+			`${error.message} ${selectedAccount.name}.`
+		);
 	}
 }
 
@@ -802,7 +817,7 @@ bot.command("schedule", async (ctx) => {
 		dydxMenus.text("Set Schedule Get Accounts", "setScheduleGetAccounts");
 		dydxMenus.row().text("Get Schedules", "getSchedules");
 
-		await ctx.reply("Schedule Menus:", {
+		await ctx.reply(`Schedule Menus for ${selectedAccount.name}: `, {
 			reply_markup: dydxMenus,
 		});
 	} catch (error) {
@@ -1084,7 +1099,11 @@ bot.on("callback_query", async (ctx) => {
 			}
 		} else if (queryData === "getSchedules") {
 			if (selectedAccount) {
-				if (schedules[userId][selectedAccount.accountKey].length > 0) {
+				if (
+					schedules[userId] &&
+					schedules[userId][selectedAccount.accountKey] &&
+					schedules[userId][selectedAccount.accountKey].length > 0
+				) {
 					const dydxMenus = new InlineKeyboard();
 					dydxMenus.text("Remove Schedule", `removeSchedule`);
 
