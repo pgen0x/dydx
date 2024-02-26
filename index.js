@@ -843,7 +843,7 @@ bot.command("help", async (ctx) => {
 
 bot.command("start", async (ctx) => {
   // Show help message
-  const helpMessage = `Welcome to the DYDX Snap Bot!\n\nTo begin using the bot, you need to set up an account. This will allow you to access private information from dYdX.\n\n<b>Available Commands:</b>\n/ping - Check the bot's health and uptime.\n/setaccount - Set up a new account.\n/accounts - View and manage your saved accounts.\n/dydxprivatemenus - View private information from dYdX.\n/dydxpublicmenus - View public information from dYdX.\n/schedule - View and set schedule for dydxprivatemenus.\n/help - Display this help message.\n\nPlease note that access to private menus requires setting up an account first. Public menus can be accessed without setting up an account.`;
+  const helpMessage = `Welcome to the DYDX Snap Bot!\n\nTo begin using the bot, you need to set up an account. This will allow you to access private information from dYdX.\n\n<b>Available Commands:</b>\n/ping - Check the bot's health and uptime.\n/setaccount - Set up a new account.\n/accounts - View and manage your saved accounts.\n/dydxprivatemenus - View private information from dYdX.\n/dydxpublicmenus - View public information from dYdX.\n/schedule - View and set schedule for dydxprivatemenus.\n/help - Display help message.\n\nPlease note that access to private menus requires setting up an account first. Public menus can be accessed without setting up an account.`;
 
   await ctx.reply(helpMessage, { parse_mode: "HTML" });
 });
