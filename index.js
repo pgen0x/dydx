@@ -55,8 +55,11 @@ for (const [key, value] of Object.entries(schedules)) {
       const time = formattedDate.split(":");
       const scheduleData = value3.data;
       const type = value3.type;
-
-      schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+      let rule = new schedule.RecurrenceRule();
+      rule.tz = "Asia/Singapore";
+      rule.hour = Number(time[0]);
+      rule.minute = Number(time[1]);
+      schedule.scheduleJob(rule, async () => {
         if (type == "getposition") {
           await scheduleExecuteGetPositions(
             key,
@@ -1056,7 +1059,7 @@ bot.on("callback_query", async (ctx) => {
         await ctx.reply(
           `Enter time you want to ${checkType(
             "getaccounts"
-          ).toLowerCase()} everyday HH:MM (24 hours time format).`
+          ).toLowerCase()} everyday HH:MM (24 hours time format / GMT +8 (SGTIME)).`
         );
         ctx.session.setScheduleGetAccounts = {
           type: "getaccounts",
@@ -1733,7 +1736,7 @@ bot.on("message", async (ctx) => {
           await ctx.reply(
             `Enter time you want to ${checkType(
               ctx.session.setScheduleGetPosition.type
-            ).toLowerCase()} everyday HH:MM (24 hours time format).`
+            ).toLowerCase()} everyday HH:MM (24 hours time format / GMT +8 (SGTIME)).`
           );
           step++;
           break;
@@ -1748,7 +1751,11 @@ bot.on("message", async (ctx) => {
 
             const time = formattedDate.split(":");
             const scheduleData = ctx.session.setScheduleGetPosition.data;
-            schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+            let rule = new schedule.RecurrenceRule();
+            rule.tz = "Asia/Singapore";
+            rule.hour = Number(time[0]);
+            rule.minute = Number(time[1]);
+            schedule.scheduleJob(rule, async () => {
               await executeGetPositions(ctx, scheduleData);
             });
             if (!schedules[userId]) {
@@ -1828,7 +1835,7 @@ bot.on("message", async (ctx) => {
           await ctx.reply(
             `Enter time you want to ${checkType(
               ctx.session.setScheduleGetTransfer.type
-            ).toLowerCase()} everyday HH:MM (24 hours time format).`
+            ).toLowerCase()} everyday HH:MM (24 hours time format / GMT +8 (SGTIME)).`
           );
 
           step++;
@@ -1844,7 +1851,11 @@ bot.on("message", async (ctx) => {
 
             const time = formattedDate.split(":");
             const scheduleData = ctx.session.setScheduleGetTransfer.data;
-            schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+            let rule = new schedule.RecurrenceRule();
+            rule.tz = "Asia/Singapore";
+            rule.hour = Number(time[0]);
+            rule.minute = Number(time[1]);
+            schedule.scheduleJob(rule, async () => {
               await executeGetTransfers(ctx, scheduleData);
             });
             if (!schedules[userId]) {
@@ -1924,7 +1935,7 @@ bot.on("message", async (ctx) => {
           await ctx.reply(
             `Enter time you want to ${checkType(
               ctx.session.setScheduleGetFundingPayment.type
-            ).toLowerCase()} everyday HH:MM (24 hours time format).`
+            ).toLowerCase()} everyday HH:MM (24 hours time format / GMT +8 (SGTIME)).`
           );
 
           step++;
@@ -1940,7 +1951,11 @@ bot.on("message", async (ctx) => {
 
             const time = formattedDate.split(":");
             const scheduleData = ctx.session.setScheduleGetFundingPayment.data;
-            schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+            let rule = new schedule.RecurrenceRule();
+            rule.tz = "Asia/Singapore";
+            rule.hour = Number(time[0]);
+            rule.minute = Number(time[1]);
+            schedule.scheduleJob(rule, async () => {
               await executeGetFundingPayment(ctx, scheduleData);
             });
             if (!schedules[userId]) {
@@ -2051,7 +2066,7 @@ bot.on("message", async (ctx) => {
           await ctx.reply(
             `Enter time you want to ${checkType(
               ctx.session.setScheduleGetOrders.type
-            ).toLowerCase()} everyday HH:MM (24 hours time format).`
+            ).toLowerCase()} everyday HH:MM (24 hours time format / GMT +8 (SGTIME)).`
           );
           step++;
           break;
@@ -2066,7 +2081,11 @@ bot.on("message", async (ctx) => {
 
             const time = formattedDate.split(":");
             const scheduleData = ctx.session.setScheduleGetOrders.data;
-            schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+            let rule = new schedule.RecurrenceRule();
+            rule.tz = "Asia/Singapore";
+            rule.hour = Number(time[0]);
+            rule.minute = Number(time[1]);
+            schedule.scheduleJob(rule, async () => {
               await executeGetOrders(ctx, scheduleData);
             });
             if (!schedules[userId]) {
@@ -2115,7 +2134,11 @@ bot.on("message", async (ctx) => {
 
             const time = formattedDate.split(":");
             const scheduleData = selectedAccount;
-            schedule.scheduleJob(`${time[1]} ${time[0]} * * *`, async () => {
+            let rule = new schedule.RecurrenceRule();
+            rule.tz = "Asia/Singapore";
+            rule.hour = Number(time[0]);
+            rule.minute = Number(time[1]);
+            schedule.scheduleJob(rule, async () => {
               await executeGetAccounts(ctx, scheduleData);
             });
             if (!schedules[userId]) {
