@@ -40,8 +40,64 @@ function loadAccounts() {
   }
 }
 
-function saveAccounts() {
-  fs.writeFileSync("accounts.json", JSON.stringify(accounts, null, 2));
+function removeAccount(userId, selectedAccount) {
+  try {
+    // Read the accounts.json file
+    const data = fs.readFileSync("accounts.json", "utf8");
+    // Parse the data
+    const accounts = JSON.parse(data);
+
+    // Check if the userId exists in the accounts object
+    if (accounts[userId]) {
+      // Extract the account key from the selectedAccount object
+      const accountKey = selectedAccount.accountKey;
+
+      // Check if the account exists for the userId
+      if (accounts[userId][accountKey]) {
+        // Remove the selected account
+        delete accounts[userId][accountKey];
+
+        // If the user has no more accounts, remove the userId entry
+        if (Object.keys(accounts[userId]).length === 0) {
+          delete accounts[userId];
+        }
+
+        // Write the updated accounts back to the file
+        fs.writeFileSync(
+          "accounts.json",
+          JSON.stringify(accounts, null, 2),
+          "utf8"
+        );
+
+        console.log(`Account '${accountKey}' has been removed.`);
+      } else {
+        console.log(
+          `Account '${accountKey}' does not exist for user '${userId}'.`
+        );
+        throw new Error("No selected account");
+      }
+    } else {
+      console.log(`User ID '${userId}' does not exist.`);
+    }
+
+    return accounts;
+  } catch (error) {
+    console.error("An error occurred:", error);
+    // If the file doesn't exist or is invalid, return an empty object
+    return {};
+  }
+}
+
+function saveAccounts(accounts) {
+  try {
+    fs.writeFileSync(
+      "accounts.json",
+      JSON.stringify(accounts, null, 2),
+      "utf8"
+    );
+  } catch (error) {
+    console.error("Error saving accounts:", error);
+  }
 }
 
 // get schedule
@@ -487,7 +543,8 @@ async function scheduleExecuteGetAccounts(userId, selectedAccount) {
 
 async function updateAccountsMessage(ctx) {
   const userId = ctx.from.id;
-  const userAccounts = accounts[userId];
+  const reFetchAccount = loadAccounts();
+  const userAccounts = reFetchAccount[userId];
 
   if (!userAccounts) {
     return; // No accounts saved
@@ -513,6 +570,7 @@ async function updateAccountsMessage(ctx) {
   }
 
   accountsMenu.row().text("Add New Account", "addnewaccount");
+  accountsMenu.row().text("Remove Selected Account", "removeselectedaccount");
   const messageId = ctx.callbackQuery.message.message_id;
   if (
     ctx.session.selectedAccount &&
@@ -666,7 +724,8 @@ bot.command("accounts", async (ctx) => {
   const userId = ctx.from.id;
 
   try {
-    const userAccounts = accounts[userId];
+    let reFetchAccount = loadAccounts();
+    const userAccounts = reFetchAccount[userId];
 
     if (!userAccounts) {
       await ctx.reply(
@@ -692,6 +751,9 @@ bot.command("accounts", async (ctx) => {
       }
 
       accountsMenu.row().text("Add New Account", "addnewaccount");
+      accountsMenu
+        .row()
+        .text("Remove Selected Account", "removeselectedaccount");
 
       let uniqueMessageText = "";
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
@@ -743,7 +805,8 @@ bot.command("dydxprivatemenus", async (ctx) => {
   const userId = ctx.from.id;
 
   try {
-    const userAccounts = accounts[userId];
+    let reFetchAccount = loadAccounts();
+    const userAccounts = reFetchAccount[userId];
     if (!userAccounts) {
       await ctx.reply(
         "No accounts saved. Use /setaccount to set your private key."
@@ -794,7 +857,8 @@ bot.command("schedule", async (ctx) => {
   const userId = ctx.from.id;
 
   try {
-    const userAccounts = accounts[userId];
+    let reFetchAccount = loadAccounts();
+    const userAccounts = reFetchAccount[userId];
     if (!userAccounts) {
       await ctx.reply(
         "No accounts saved. Use /setaccount to set your private key."
@@ -854,13 +918,13 @@ bot.command("start", async (ctx) => {
 bot.on("callback_query", async (ctx) => {
   const userId = ctx.from.id;
   const queryData = ctx.callbackQuery.data;
-
+  let reFetchAccount = loadAccounts();
+  const userAccounts = reFetchAccount[userId];
+  const selectedAccount = checkSelectedAccount(userAccounts, ctx);
   try {
-    const userAccounts = accounts[userId];
-
-    const selectedAccount = checkSelectedAccount(userAccounts, ctx);
-
     if (queryData.startsWith("getaccount_")) {
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const accountKey = queryData.replace("getaccount_", "");
       const account = userAccounts[accountKey];
 
@@ -877,18 +941,18 @@ bot.on("callback_query", async (ctx) => {
         // Update the account selected in accounts.json
         for (const [key, value] of Object.entries(userAccounts)) {
           if (key == accountKey) {
-            accounts[userId][accountKey] = {
-              ...accounts[userId][accountKey],
+            reFetchAccount[userId][accountKey] = {
+              ...reFetchAccount[userId][accountKey],
               selectedAccount: 1,
             };
           } else {
-            accounts[userId][key] = {
-              ...accounts[userId][key],
+            reFetchAccount[userId][key] = {
+              ...reFetchAccount[userId][key],
               selectedAccount: 0,
             };
           }
         }
-        saveAccounts();
+        saveAccounts(reFetchAccount);
 
         // Update the previous message
 
@@ -1278,6 +1342,66 @@ bot.on("callback_query", async (ctx) => {
         parse_mode: "HTML",
       });
       ctx.session.removeSchedule = { step: 1 };
+    } else if (queryData === "removeselectedaccount") {
+      if (selectedAccount) {
+        try {
+          try {
+            await removeAccount(userId, selectedAccount);
+            delete ctx.session.selectedAccount;
+          } catch (error) {
+            if (error.message === "No selected account") {
+              await ctx.reply(
+                `No selected account. Use /accounts to select your account`
+              );
+            }
+          }
+
+          reFetchAccount = loadAccounts();
+          const userAccounts = reFetchAccount[userId];
+          if (!userAccounts) {
+            await ctx.reply(
+              "No accounts saved. Use /setaccount to set your private key."
+            );
+          } else {
+            const accountsMenu = new InlineKeyboard();
+
+            for (const accountKey in userAccounts) {
+              const account = userAccounts[accountKey];
+              const isSelected = account.selectedAccount == 1 ? true : false;
+
+              const truncatedAddress = `${account.address.slice(
+                0,
+                4
+              )}...${account.address.slice(-4)}`;
+
+              const accountText = isSelected
+                ? `✅ Account ${account.name} (${truncatedAddress})`
+                : `Account ${account.name} (${truncatedAddress})`;
+
+              accountsMenu.text(accountText, `getaccount_${accountKey}`);
+            }
+
+            accountsMenu.row().text("Add New Account", "addnewaccount");
+            accountsMenu
+              .row()
+              .text("Remove Selected Account", "removeselectedaccount");
+
+            let uniqueMessageText = "";
+
+            await ctx.reply(
+              uniqueMessageText ? uniqueMessageText : "Your saved accounts:",
+              {
+                reply_markup: accountsMenu,
+                parse_mode: "HTML",
+              }
+            );
+          }
+        } catch (error) {
+          await ctx.reply(`Error checking accounts: ${error.message}`);
+        }
+      } else {
+        throw new Error("No selected account");
+      }
     }
 
     await ctx.answerCallbackQuery();
@@ -1335,17 +1459,20 @@ bot.on("message", async (ctx) => {
           { parse_mode: "HTML" }
         );
       } else if (step === 2) {
-        const newAccountNumber = Object.keys(accounts[userId] || {}).length + 1;
+        let reFetchAccount = loadAccounts();
+
+        const newAccountNumber =
+          Object.keys(reFetchAccount[userId] || {}).length + 1;
         const accountKey = `account_${newAccountNumber}`;
         const client = new DydxClient(HTTP_HOST);
         const apiCreds = JSON.parse(messageText);
         client.apiKeyCredentials = apiCreds;
         const { user } = await client.private.getUser();
-        if (!accounts[userId]) {
-          accounts[userId] = {};
+        if (!reFetchAccount[userId]) {
+          reFetchAccount[userId] = {};
         }
 
-        accounts[userId][accountKey] = {
+        reFetchAccount[userId][accountKey] = {
           name: settingUpAccount.accountName,
           selectedAccount: 0,
           apiKey: JSON.parse(messageText),
@@ -1353,7 +1480,7 @@ bot.on("message", async (ctx) => {
           user,
         };
 
-        saveAccounts();
+        saveAccounts(reFetchAccount);
 
         // Respond to the user
         await ctx.reply(`Account ${newAccountNumber} set successfully.`);
@@ -1676,7 +1803,8 @@ bot.on("message", async (ctx) => {
     if (setScheduleGetPosition) {
       let { step, data } = setScheduleGetPosition;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
@@ -1789,7 +1917,8 @@ bot.on("message", async (ctx) => {
     if (setScheduleGetTransfer) {
       let { step, data } = setScheduleGetTransfer;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
@@ -1890,7 +2019,8 @@ bot.on("message", async (ctx) => {
     if (setScheduleGetFundingPayment) {
       let { step, data } = setScheduleGetFundingPayment;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
@@ -1990,7 +2120,8 @@ bot.on("message", async (ctx) => {
     if (setScheduleGetOrders) {
       let { step, data } = setScheduleGetOrders;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
@@ -2120,7 +2251,8 @@ bot.on("message", async (ctx) => {
     if (setScheduleGetAccounts) {
       let { step, data } = setScheduleGetAccounts;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
@@ -2173,7 +2305,8 @@ bot.on("message", async (ctx) => {
     if (removeSchedule) {
       let { step, data } = removeSchedule;
       const userId = ctx.from.id;
-      const userAccounts = accounts[userId];
+      let reFetchAccount = loadAccounts();
+      const userAccounts = reFetchAccount[userId];
       const selectedAccount = checkSelectedAccount(userAccounts, ctx);
       switch (step) {
         case 1:
